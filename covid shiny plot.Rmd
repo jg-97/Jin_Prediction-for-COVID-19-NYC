@@ -1,0 +1,250 @@
+---
+title: "Plot for covid-19"
+author: "Jin Ge"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    css: styles_Dashboard.css
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(flexdashboard)
+library(shiny)
+library(plotly)
+
+# load the data
+## the data is covid_date_by_zip
+covid_dat <- read.csv("covid_date_by_zip.csv") %>% 
+  select(-X) %>% arrange(modzcta, date) %>% select(modzcta, date, everything()) %>% 
+  drop_na(modzcta) 
+
+## the social status data
+social_dat <- read.csv("social_dat.csv") %>% select(-X)
+
+```
+
+COVID-19 data for NYC as a whole
+=====================================
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+```{r sidebar_whole}
+data_category <- c("case number", "death number", "total number", "positive percentage", "case rate", "death rate")
+
+selectInput("data_category", label = h3("Choose data category"),
+            choices = as.list(data_category), selected = "case number")
+
+```
+
+Column {.tabset .tabset-fade .tabset-pills}
+-----------------------------------------------------------------------
+### <span style="color:#69899f"> **NYC COVID-19 data** </span>
+
+```{r NYC_as_whole}
+
+renderPlotly(if (input$data_category == "case number"){
+  covid_dat %>% group_by(date) %>% summarize(number_of_cases = sum(dif_case)) %>% 
+  select(date, number_of_cases) %>% 
+  plot_ly(x = ~date, y = ~number_of_cases, type = "bar")
+}else if (input$data_category == "death number"){
+  covid_dat %>% group_by(date) %>% summarize(number_of_death = sum(dif_death)) %>% 
+  select(date, number_of_death) %>% 
+  plot_ly(x = ~date, y = ~number_of_death, type = "bar")
+}else if (input$data_category == "total number"){
+  covid_dat %>% group_by(date) %>% summarize(total_number_of_tests = sum(dif_total)) %>% 
+  select(date, total_number_of_tests) %>% 
+  plot_ly(x = ~date, y = ~total_number_of_tests, type = "bar")
+}else if (input$data_category == "positive percentage"){
+  covid_dat %>% group_by(date) %>% summarize(positive_percentage = sum(dif_case)/sum(dif_total)) %>% 
+  select(date, positive_percentage) %>% 
+  plot_ly(x = ~date, y = ~positive_percentage, type = "bar")
+}else if (input$data_category == "case rate"){
+  covid_dat %>% group_by(date) %>% summarize(total_case_rate = sum(dif_case_rate)) %>% 
+  select(date, total_case_rate) %>% 
+  plot_ly(x = ~date, y = ~total_case_rate, type = "bar")
+}else if (input$data_category == "death rate"){
+  covid_dat %>% group_by(date) %>% summarize(total_death_rate = sum(dif_death_rate)) %>% 
+  select(date, total_death_rate) %>% 
+  plot_ly(x = ~date, y = ~total_death_rate, type = "bar")
+})
+
+
+```
+
+
+Data for NYC across zip codes by date
+=====================================
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+```{r sidebar_each}
+zipcode <- covid_dat %>% distinct(modzcta) %>% pull()
+
+selectInput("zipcode", label = h3("NYC zip code"),
+            choices = as.list(zipcode), selected = 10001)
+
+```
+
+Column {.tabset .tabset-fade .tabset-pills}
+-----------------------------------------------------------------------
+### <span style="color:#69899f"> **Cases number** </span>
+
+```{r case_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_case, type = "bar")%>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020,
+            tickmode = "linear"),
+          yaxis = list(
+            title = "Number of cases",
+            dtick = 5,
+            tick0 = 0,
+            tickmode = "linear"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Death number** </span>
+
+```{r death_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_death, type = "bar") %>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020,
+            tickmode = "linear"),
+          yaxis = list(
+            title = "Number of death",
+            dtick = 1,
+            tick0 = 0,
+            tickmode = "linear"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Total number of tests** </span>
+
+```{r total_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_total, type = "bar")%>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020),
+          yaxis = list(
+            title = "Total number of tests",
+            dtick = 500,
+            tick0 = 0,
+            tickmode = "linear"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Positive percentage** </span>
+
+```{r pospercent_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_per_positive, type = "bar")%>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020,
+            tickmode = "linear"),
+          yaxis = list(
+            title = "Positive percentage"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Case rate** </span>
+
+```{r case_rate_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_case_rate, type = "bar")%>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020,
+            tickmode = "linear"),
+          yaxis = list(
+            title = "Case rate",
+            dtick = 1,
+            tick0 = 0,
+            tickmode = "linear"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Death rate** </span>
+
+```{r death_rate_plot_by_day_across_zipcode}
+renderPlotly({
+  indx <- which(zipcode == input$zipcode)
+
+  covid_dat %>% filter(modzcta == zipcode[[indx]]) %>% 
+               plot_ly(x = ~date, y = ~dif_death_rate, type = "bar")%>% 
+      layout( 
+          xaxis = list(
+            title = "Date",
+            dtick = 1,
+            tick0 = 04/03/2020,
+            tickmode = "linear"),
+          yaxis = list(
+            title = "Death rate",
+            dtick = 1,
+            tick0 = 0,
+            tickmode = "linear"))
+}
+)
+
+```
+
+### <span style="color:#69899f"> **Discription** </span>
+
+<br><br>
+
+* **Case number**: the number of cases in each zipcode by day
+* **Death number**: the number of death in each zipcode by day
+* **Total number of tests**: the total number of tests in each zipcode by day
+* **Positive percentage**: the positive percentage of COVID-19 in each zipcode by day (calculated by case number divided by total number of testing)
+* **Case rate**: the case rate of COVID-19 in each zipcode by day (the number of cases in every 100,000 population in NYC)
+* **Death rate**: the death rate of COVID-19 in each zipcode by day (the number of death in every 100,000 population in NYC)
+
+Note: 
+
+* The plot demonstrates abnormal data on April 27. We may need to consider a way to deal with it.
+
+* The values of positive percentage are quite abnormal with many values further greater than 1.
+
